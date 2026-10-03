@@ -1,0 +1,996 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ───────────────────────────── Identity ─────────────────────────────
+
+// Staff roles can be combined on one account for a small pilot, but each permission is still
+// checked explicitly (see lib/permissions.ts). Every account is a MEMBER.
+enum Role {
+  MEMBER
+  EDITOR
+  MODERATOR
+  COORDINATOR
+  FINANCE
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String
+  roles         Role[]    @default([MEMBER])
+  suspendedAt   DateTime?
+
+  // Public profile. Email and phone are never part of it.
+  name        String
+  headline    String?
+  bio         String?
+  location    String?
+  affiliation String?
+  memberType  String?
+  interests   String[] @default([])
+
+  // Private
+  phone String?
+
+  // Optional notifications. Moderation, match and payment notices are always delivered in-app.
+  emailOnReplies Boolean @default(true)
+  emailOnUpdates Boolean @default(true)
+
+  authTokens           AuthToken[]
+  consents             ConsentRecord[]
+  notifications        Notification[]
+  exhibitions          Exhibition[]         @relation("ExhibitionAuthor")
+  exhibitionReviews    Exhibition[]         @relation("ExhibitionReviewer")
+  uploads              Upload[]
+  exhibitionComments   ExhibitionComment[]
+  exhibitionReactions  ExhibitionReaction[]
+  exhibitionSaves      ExhibitionSave[]
+  threads              Thread[]
+  threadMessages       ThreadMessage[]
+  audioRooms           AudioRoom[]
+  audioMemberships     AudioRoomMember[]
+  reports              Report[]             @relation("Reporter")
+  blocksMade           UserBlock[]          @relation("Blocker")
+  blocksReceived       UserBlock[]          @relation("Blocked")
+  mentorProfile        MentorProfile?
+  opportunities        Opportunity[]
+  applications         MentorshipApplication[]
+  matchesAsMentor      Match[]              @relation("MatchMentor")
+  matchesAsStudent     Match[]              @relation("MatchStudent")
+  matchUpdates         MatchUpdate[]
+  campaigns            Campaign[]
+  contributions        Contribution[]
+  newsArticles         NewsArticle[]
+  auditLogs            AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum AuthTokenType {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+// Single-use tokens for email verification and password recovery. Only a hash is stored.
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([userId, type])
+}
+
+model ConsentRecord {
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email         String?
+  kind          String // TERMS_AND_PRIVACY | MAILING_LIST
+  policyVersion String
+  source        String
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([email])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String?
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+}
+
+// ───────────────────────────── Content ─────────────────────────────
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// Editable site pages (about, privacy, terms, community-standards). Each save of a published
+// page creates a new version, so policies keep their history and effective dates.
+model PageVersion {
+  id            String        @id @default(cuid())
+  slug          String
+  version       Int
+  title         String
+  body          String
+  effectiveDate DateTime?
+  status        PublishStatus @default(DRAFT)
+  createdById   String?
+  publishedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([slug, version])
+  @@index([slug, status, version])
+}
+
+// Editorial news published by staff. Member project posts are Exhibitions; an article may link
+// to one rather than copy it.
+model NewsArticle {
+  id                 String        @id @default(cuid())
+  slug               String        @unique
+  title              String
+  excerpt            String
+  body               String
+  category           String
+  coverUploadId      String?       @unique
+  cover              Upload?       @relation(fields: [coverUploadId], references: [id], onDelete: SetNull)
+  coverAlt           String?
+  status             PublishStatus @default(DRAFT)
+  publishedAt        DateTime?
+  authorId           String?
+  author             User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  linkedExhibitionId String?
+  linkedExhibition   Exhibition?   @relation(fields: [linkedExhibitionId], references: [id], onDelete: SetNull)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([category])
+}
+
+enum TeamGroup {
+  STAFF
+  ADVISER
+  COMMITTEE
+}
+
+model TeamMember {
+  id            String    @id @default(cuid())
+  name          String
+  roleTitle     String
+  group         TeamGroup @default(STAFF)
+  bio           String
+  photoUploadId String?   @unique
+  photo         Upload?   @relation(fields: [photoUploadId], references: [id], onDelete: SetNull)
+  sortOrder     Int       @default(0)
+  published     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([published, group, sortOrder])
+}
+
+enum UploadPurpose {
+  EXHIBITION_MEDIA
+  APPLICATION_DOCUMENT
+  NEWS_COVER
+  TEAM_PHOTO
+}
+
+// Every stored object. PENDING rows are uploads that were started but never attached to a
+// record; the cleanup job deletes them (and their bytes) after a day.
+model Upload {
+  id         String        @id @default(cuid())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose    UploadPurpose
+  storageKey String        @unique
+  mime       String
+  size       Int
+  // Set once the server has re-read the stored bytes and checked size, signature and duration.
+  verifiedAt DateTime?
+  durationSec Int?
+  attached   Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+
+  exhibitionMedia ExhibitionMedia?
+  application     MentorshipApplication?
+  newsArticle     NewsArticle?
+  teamMember      TeamMember?
+
+  @@index([attached, createdAt])
+}
+
+enum ExhibitionStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  REMOVED
+}
+
+enum RevisionStatus {
+  NONE
+  PENDING
+  REJECTED
+}
+
+// A member's project post. Only APPROVED posts are public. An edit to an approved post is held
+// in pendingRevision until staff approve it, so the last approved version stays visible.
+model Exhibition {
+  id              String           @id @default(cuid())
+  slug            String           @unique
+  authorId        String
+  author          User             @relation("ExhibitionAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  title           String
+  description     String
+  topic           String
+  stage           String
+  teamCredits     String?
+  projectUrl      String?
+  status          ExhibitionStatus @default(DRAFT)
+  moderationNote  String?
+  featured        Boolean          @default(false)
+  revisionStatus  RevisionStatus   @default(NONE)
+  pendingRevision Json?
+  reviewedById    String?
+  reviewedBy      User?            @relation("ExhibitionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt      DateTime?
+  publishedAt     DateTime?
+
+  linkedThreadId      String?
+  linkedThread        Thread?      @relation(fields: [linkedThreadId], references: [id], onDelete: SetNull)
+  linkedOpportunityId String?
+  linkedOpportunity   Opportunity? @relation(fields: [linkedOpportunityId], references: [id], onDelete: SetNull)
+  linkedCampaignId    String?
+  linkedCampaign      Campaign?    @relation("ExhibitionCampaignLink", fields: [linkedCampaignId], references: [id], onDelete: SetNull)
+
+  media     ExhibitionMedia[]
+  comments  ExhibitionComment[]
+  reactions ExhibitionReaction[]
+  saves     ExhibitionSave[]
+  news      NewsArticle[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([status, topic, publishedAt])
+  @@index([authorId])
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+}
+
+model ExhibitionMedia {
+  id           String     @id @default(cuid())
+  exhibitionId String
+  exhibition   Exhibition @relation(fields: [exhibitionId], references: [id], onDelete: Cascade)
+  uploadId     String     @unique
+  upload       Upload     @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  kind         MediaKind
+  alt          String
+  width        Int?
+  height       Int?
+  durationSec  Int?
+  sortOrder    Int        @default(0)
+  // false while the media belongs only to a revision that is awaiting review
+  live         Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  @@index([exhibitionId, sortOrder])
+}
+
+enum ContentVisibility {
+  VISIBLE
+  REMOVED
+}
+
+model ExhibitionComment {
+  id           String              @id @default(cuid())
+  exhibitionId String
+  exhibition   Exhibition          @relation(fields: [exhibitionId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentId     String?
+  parent       ExhibitionComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      ExhibitionComment[] @relation("CommentReplies")
+  body         String
+  visibility   ContentVisibility   @default(VISIBLE)
+  createdAt    DateTime            @default(now())
+
+  @@index([exhibitionId, createdAt])
+}
+
+// One reaction per member per exhibition; changing it updates the emoji in place.
+model ExhibitionReaction {
+  id           String     @id @default(cuid())
+  exhibitionId String
+  exhibition   Exhibition @relation(fields: [exhibitionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji        String
+  createdAt    DateTime   @default(now())
+
+  @@unique([exhibitionId, userId])
+}
+
+model ExhibitionSave {
+  id           String     @id @default(cuid())
+  exhibitionId String
+  exhibition   Exhibition @relation(fields: [exhibitionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([exhibitionId, userId])
+}
+
+// ───────────────────────────── Conversation ─────────────────────────────
+
+enum ThreadStatus {
+  OPEN
+  LOCKED
+  ARCHIVED
+}
+
+model Thread {
+  id             String          @id @default(cuid())
+  hostId         String
+  host           User            @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  title          String
+  topic          String
+  body           String
+  referenceUrl   String?
+  status         ThreadStatus    @default(OPEN)
+  // Written summary a host can leave after a linked audio room ends
+  summary        String?
+  lastActivityAt DateTime        @default(now())
+  messages       ThreadMessage[]
+  audioRooms     AudioRoom[]
+  exhibitions    Exhibition[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([status, lastActivityAt])
+  @@index([status, topic, createdAt])
+}
+
+model ThreadMessage {
+  id         String            @id @default(cuid())
+  threadId   String
+  thread     Thread            @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentId   String?
+  parent     ThreadMessage?    @relation("MessageReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies    ThreadMessage[]   @relation("MessageReplies")
+  body       String
+  // Generated by the browser per send attempt, so a retried request can't create a duplicate.
+  clientId   String
+  visibility ContentVisibility @default(VISIBLE)
+  editedAt   DateTime?
+  createdAt  DateTime          @default(now())
+
+  @@unique([authorId, clientId])
+  @@index([threadId, createdAt])
+}
+
+enum AudioRoomStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+// A live audio room inside Discussion. Its text channel is the linked Thread, so a poor
+// connection never ends participation. Audio is not recorded.
+model AudioRoom {
+  id              String            @id @default(cuid())
+  hostId          String
+  host            User              @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  threadId        String
+  thread          Thread            @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  title           String
+  description     String
+  topic           String
+  startsAt        DateTime
+  timezone        String
+  status          AudioRoomStatus   @default(SCHEDULED)
+  startedAt       DateTime?
+  endedAt         DateTime?
+  endReason       String?
+  hostLastSeenAt  DateTime?
+  maxParticipants Int               @default(25)
+  maxSpeakers     Int               @default(5)
+  members         AudioRoomMember[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([status, startsAt])
+}
+
+enum AudioRole {
+  HOST
+  SPEAKER
+  LISTENER
+}
+
+enum SpeakRequest {
+  NONE
+  REQUESTED
+  DECLINED
+}
+
+model AudioRoomMember {
+  id            String       @id @default(cuid())
+  roomId        String
+  room          AudioRoom    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role          AudioRole    @default(LISTENER)
+  speakRequest  SpeakRequest @default(NONE)
+  // Set when the host removes someone: they cannot get a new token for this room.
+  removedAt     DateTime?
+  joinedAt      DateTime     @default(now())
+  lastSeenAt    DateTime     @default(now())
+  leftAt        DateTime?
+  // Participation metadata kept for cost tracking (participant-minutes). No audio is stored.
+  secondsInRoom Int          @default(0)
+
+  @@unique([roomId, userId])
+  @@index([roomId, lastSeenAt])
+}
+
+enum ReportStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+model Report {
+  id             String       @id @default(cuid())
+  reporterId     String
+  reporter       User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType     String // EXHIBITION | EXHIBITION_COMMENT | THREAD | THREAD_MESSAGE | AUDIO_ROOM | USER
+  targetId       String
+  targetHref     String?
+  reason         String
+  details        String?
+  status         ReportStatus @default(OPEN)
+  assigneeId     String?
+  handledById    String?
+  resolutionNote String?
+  handledAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@unique([reporterId, targetType, targetId])
+  @@index([status, createdAt])
+}
+
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
+
+// ───────────────────────────── Mentorship ─────────────────────────────
+
+enum MentorKind {
+  RESEARCH_PI
+  TECHNICAL_MENTOR
+}
+
+enum MentorStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum WorkingMode {
+  REMOTE
+  LOCAL
+  HYBRID
+}
+
+model MentorProfile {
+  id               String       @id @default(cuid())
+  userId           String       @unique
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind             MentorKind
+  expertise        String[]
+  affiliation      String
+  projectInterests String
+  availability     String
+  location         String
+  workingMode      WorkingMode
+  capacity         Int
+  status           MentorStatus @default(PENDING)
+  reviewNote       String?
+  verifiedById     String?
+  verifiedAt       DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([status])
+}
+
+enum OpportunityStatus {
+  PENDING
+  PUBLISHED
+  CLOSED
+  REJECTED
+}
+
+model Opportunity {
+  id            String            @id @default(cuid())
+  mentorId      String
+  mentor        User              @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  title         String
+  scope         String
+  skills        String[]
+  learningGoals String
+  duration      String
+  hoursPerWeek  String
+  location      String
+  workingMode   WorkingMode
+  facilities    String?
+  fundingStatus String // UNFUNDED | STIPEND_AVAILABLE | SEEKING_SPONSORSHIP | FUNDED
+  fundingNote   String?
+  topic         String
+  capacity      Int
+  // Places reserved by ACTIVE matches. Guarded by a conditional update so it never exceeds capacity.
+  filled        Int               @default(0)
+  status        OpportunityStatus @default(PENDING)
+  reviewNote    String?
+  applications  MentorshipApplication[]
+  matches       Match[]
+  exhibitions   Exhibition[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([status, createdAt])
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWING
+  MATCH_PROPOSED
+  ACTIVE
+  DECLINED
+  WITHDRAWN
+  COMPLETED
+  CLOSED
+}
+
+// Private. Visible to the applicant and coordinators, and to a mentor only once a coordinator
+// has proposed a match that involves them.
+model MentorshipApplication {
+  id               String            @id @default(cuid())
+  applicantId      String
+  applicant        User              @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  opportunityId    String?
+  opportunity      Opportunity?      @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  interests        String
+  experience       String
+  motivation       String
+  goals            String
+  availability     String
+  location         String
+  documentUploadId String?           @unique
+  document         Upload?           @relation(fields: [documentUploadId], references: [id], onDelete: SetNull)
+  status           ApplicationStatus @default(DRAFT)
+  submittedAt      DateTime?
+  // The dated copy of what was submitted, kept even if the draft fields change later.
+  submittedVersion Json?
+  coordinatorNote  String?
+  matches          Match[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([status, submittedAt])
+  @@index([applicantId])
+}
+
+enum MatchStatus {
+  PROPOSED
+  ACTIVE
+  DECLINED
+  EXPIRED
+  COMPLETED
+  CLOSED
+  REMATCH_REQUESTED
+}
+
+model Match {
+  id                String                @id @default(cuid())
+  applicationId     String
+  application       MentorshipApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  opportunityId     String
+  opportunity       Opportunity           @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  mentorId          String
+  mentor            User                  @relation("MatchMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  studentId         String
+  student           User                  @relation("MatchStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  coordinatorId     String
+  coordinatorNote   String?
+  status            MatchStatus           @default(PROPOSED)
+  studentAcceptedAt DateTime?
+  mentorAcceptedAt  DateTime?
+  expiresAt         DateTime
+  // Project workspace, agreed after acceptance
+  brief             String?
+  supervisor        String?
+  resources         String?
+  meetingCadence    String?
+  expectedOutput    String?
+  // Outcome
+  deliverables      String?
+  feedback          String?
+  rematchReason     String?
+  closedAt          DateTime?
+  milestones        Milestone[]
+  updates           MatchUpdate[]
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@index([status])
+  @@index([mentorId])
+  @@index([studentId])
+}
+
+model Milestone {
+  id        String    @id @default(cuid())
+  matchId   String
+  match     Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  title     String
+  dueDate   DateTime?
+  doneAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([matchId])
+}
+
+model MatchUpdate {
+  id        String   @id @default(cuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([matchId, createdAt])
+}
+
+// ───────────────────────────── Support ─────────────────────────────
+
+enum CampaignStatus {
+  SUBMITTED
+  REVIEWING
+  APPROVED
+  OPEN
+  CLOSED
+  REJECTED
+}
+
+// A request for support. It becomes a public campaign only once staff approve it and record
+// what happens if the target is missed or exceeded.
+model Campaign {
+  id              String              @id @default(cuid())
+  slug            String              @unique
+  requesterId     String
+  requester       User                @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  title           String
+  kind            String // PROJECT | COHORT | PLACEMENT
+  purpose         String
+  team            String
+  beneficiaries   String
+  budget          String
+  currency        String
+  // Integer minor units (kobo, cents)
+  targetMinor     BigInt
+  deadline        DateTime?
+  targetPolicy    String?
+  status          CampaignStatus      @default(SUBMITTED)
+  reviewNote      String?
+  reviewedById    String?
+  milestones      CampaignMilestone[]
+  updates         CampaignUpdate[]
+  contributions   Contribution[]
+  disbursements   Disbursement[]
+  enquiries       SupportEnquiry[]
+  exhibitionLinks Exhibition[]        @relation("ExhibitionCampaignLink")
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([status, createdAt])
+}
+
+enum CampaignMilestoneStatus {
+  PLANNED
+  EVIDENCE_SUBMITTED
+  APPROVED
+}
+
+model CampaignMilestone {
+  id            String                  @id @default(cuid())
+  campaignId    String
+  campaign      Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  title         String
+  amountMinor   BigInt
+  status        CampaignMilestoneStatus @default(PLANNED)
+  evidence      String?
+  reviewedById  String?
+  disbursements Disbursement[]
+  sortOrder     Int                     @default(0)
+  createdAt     DateTime                @default(now())
+
+  @@index([campaignId, sortOrder])
+}
+
+model CampaignUpdate {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  authorId   String
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+}
+
+enum ContributionStatus {
+  INITIATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  DISPUTED
+}
+
+// One record per checkout attempt, for both the general fund (campaignId null) and campaigns.
+// Only the payment provider's verified webhook moves it to SUCCEEDED.
+model Contribution {
+  id                    String             @id @default(cuid())
+  campaignId            String?
+  campaign              Campaign?          @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  amountMinor           BigInt
+  currency              String
+  feeMinor              BigInt?
+  refundedMinor         BigInt             @default(0)
+  status                ContributionStatus @default(INITIATED)
+  provider              String
+  reference             String             @unique
+  providerTransactionId String?
+  donorEmail            String
+  donorName             String?
+  // Public acknowledgement is opt-in; false shows "Anonymous" publicly but keeps this record.
+  showPublicly          Boolean            @default(false)
+  userId                String?
+  user                  User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  acknowledgedAt        DateTime?
+  events                PaymentEvent[]
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@unique([provider, providerTransactionId])
+  @@index([status, campaignId])
+}
+
+// Every webhook delivery, exactly once per provider event id. A repeat delivery hits the unique
+// constraint and is ignored.
+model PaymentEvent {
+  id             String        @id @default(cuid())
+  provider       String
+  eventId        String
+  type           String
+  contributionId String?
+  contribution   Contribution? @relation(fields: [contributionId], references: [id], onDelete: SetNull)
+  outcome        String
+  payload        Json
+  createdAt      DateTime      @default(now())
+
+  @@unique([provider, eventId])
+}
+
+// Money released to a campaign, recorded by finance staff against milestone evidence.
+model Disbursement {
+  id           String             @id @default(cuid())
+  campaignId   String
+  campaign     Campaign           @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  milestoneId  String?
+  milestone    CampaignMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  amountMinor  BigInt
+  currency     String
+  note         String
+  recordedById String
+  createdAt    DateTime           @default(now())
+
+  @@index([campaignId])
+}
+
+enum EnquiryStatus {
+  NEW
+  REVIEWING
+  ACCEPTED
+  DECLINED
+}
+
+// Institutional partnership, in-kind and pledge enquiries. These never count as received cash.
+model SupportEnquiry {
+  id             String        @id @default(cuid())
+  kind           String // PARTNERSHIP | IN_KIND | PLEDGE
+  organisation   String
+  contactName    String
+  email          String
+  details        String
+  estimatedValue String?
+  campaignId     String?
+  campaign       Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  status         EnquiryStatus @default(NEW)
+  assigneeId     String?
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([status, createdAt])
+}
+
+// ───────────────────────────── Operations ─────────────────────────────
+
+enum VolunteerStatus {
+  SUBMITTED
+  REVIEWING
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+model VolunteerApplication {
+  id           String          @id @default(cuid())
+  name         String
+  email        String
+  interests    String
+  committee    String
+  skills       String
+  availability String
+  status       VolunteerStatus @default(SUBMITTED)
+  assigneeId   String?
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([status, createdAt])
+}
+
+enum SubscriberStatus {
+  PENDING
+  ACTIVE
+  UNSUBSCRIBED
+}
+
+model MailingSubscriber {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  name             String?
+  status           SubscriberStatus @default(PENDING)
+  confirmTokenHash String?          @unique
+  unsubscribeToken String           @unique
+  consentAt        DateTime?
+  source           String
+  policyVersion    String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([status])
+}
+
+enum ContactStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  ARCHIVED
+}
+
+model ContactRequest {
+  id             String        @id @default(cuid())
+  name           String
+  email          String
+  subject        String
+  message        String
+  // Sent by the form so a retried submission can't create a second request.
+  idempotencyKey String        @unique
+  status         ContactStatus @default(NEW)
+  assigneeId     String?
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([status, createdAt])
+}
+
+// Who did what, to what, and why. Rejections, removals and funding changes require a reason.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  targetType String
+  targetId   String
+  reason     String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+// Durable email queue. Rows are written in the same transaction as the event that caused them,
+// then delivered with retries (lib/mailer.ts). dedupeKey stops the same notice going out twice.
+model EmailOutbox {
+  id            String      @id @default(cuid())
+  toEmail       String
+  subject       String
+  html          String
+  kind          String
+  dedupeKey     String?     @unique
+  status        EmailStatus @default(QUEUED)
+  attempts      Int         @default(0)
+  lastError     String?
+  nextAttemptAt DateTime    @default(now())
+  sentAt        DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@index([status, nextAttemptAt])
+}
+
+// Small editable settings: volunteer committees, featured exhibition, pilot limits, confirmations.
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

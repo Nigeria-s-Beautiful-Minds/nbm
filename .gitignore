@@ -1,0 +1,26 @@
+.DS_Store
+.vscode/
+.idea/
+
+node_modules/
+npm-debug.log*
+
+.next/
+coverage/
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Secrets: never commit. .env.example carries names and descriptions only.
+.env
+.env*.local
+.vercel
+
+# Local development database and uploaded files (see scripts/dev-db.ts, lib/storage.ts)
+.localdata/
+
+# Temporary files / screenshots. Retention: scripts/screenshots.mjs keeps the last 5 runs.
+.tmp/
+.tmp/screenshots/
+
+# Original full-size artwork (compressed copies live in public/brand and prisma/demo-assets)
+images/

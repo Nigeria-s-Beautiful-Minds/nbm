@@ -1,0 +1,50 @@
+{
+  "name": "nbm-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nigeria's Beautiful Minds (NBM): a community for research, innovation and collaboration.",
+  "scripts": {
+    "dev": "next dev -p 4174",
+    "build": "prisma generate && next build",
+    "start": "next start -p 4174",
+    "typecheck": "tsc --noEmit",
+    "db:dev": "tsx scripts/dev-db.ts",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "prisma:generate": "prisma generate",
+    "prisma:studio": "prisma studio",
+    "seed": "tsx --env-file=.env prisma/seed.ts",
+    "seed:demo": "tsx --env-file=.env prisma/seed-demo.ts",
+    "jobs": "tsx --env-file=.env scripts/run-jobs.ts",
+    "test": "tsx --env-file=.env --test --test-concurrency=1 tests/*.test.ts",
+    "screenshots": "node --env-file=.env scripts/screenshots.mjs",
+    "test:browser": "node --env-file=.env scripts/e2e.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1145.0",
+    "@aws-sdk/s3-request-presigner": "^3.1145.0",
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^2.4.3",
+    "livekit-client": "^2.22.3",
+    "livekit-server-sdk": "^2.19.1",
+    "next": "^15.5.18",
+    "next-auth": "^4.24.14",
+    "nodemailer": "^7.0.13",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "resend": "^6.17.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.10.2",
+    "@types/nodemailer": "^8.0.0",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "embedded-postgres": "17.10.0-beta.17",
+    "prisma": "^6.19.3",
+    "puppeteer": "^25.0.4",
+    "tsx": "^4.22.3",
+    "typescript": "^5.9.3"
+  }
+}
