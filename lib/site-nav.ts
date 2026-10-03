@@ -1,4 +1,4 @@
-// Single source of truth for the header, mobile menu and footer. The seven main tabs, in order.
+// Single source of truth for the header, mobile menu and footer. The eight main tabs, in order.
 export type NavChild = { href: string; label: string };
 export type NavItem = { id: string; href: string; label: string; accent: string; children?: NavChild[]; clickable?: boolean };
 
@@ -32,7 +32,8 @@ export const SITE_NAV: NavItem[] = [
   { id: "exhibitions", href: "/exhibitions", label: "Exhibitions", accent: "accent-exhibitions" },
   { id: "discussion", href: "/discussion", label: "Discussion", accent: "accent-discussion" },
   { id: "mentorship", href: "/mentorship", label: "Mentorship", accent: "accent-mentorship" },
-  { id: "sponsorship", href: "/sponsorship", label: "Sponsorship", accent: "accent-sponsorship" }
+  { id: "sponsorship", href: "/sponsorship", label: "Sponsorship", accent: "accent-sponsorship" },
+  { id: "scholarships", href: "/scholarships", label: "Scholarships & Funding", accent: "accent-funding" }
 ];
 
 export const ACCOUNT_NAV: NavChild[] = [

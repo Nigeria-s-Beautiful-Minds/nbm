@@ -10,7 +10,7 @@ const BASE = (process.env.NEXTAUTH_URL || "http://localhost:4174").replace(/\/$/
 const ROOT = ".tmp/screenshots";
 const KEEP_RUNS = 5;
 const VIEWPORTS = [["desktop", 1366, 900], ["tablet", 820, 1100], ["mobile", 375, 760]];
-const PUBLIC = ["/", "/about", "/about/news", "/about/team", "/about/privacy", "/get-involved", "/get-involved/contribute", "/get-involved/volunteer", "/get-involved/contact", "/exhibitions", "/exhibitions/sample-ai-data", "/discussion", "/mentorship", "/sponsorship", "/sponsorship/sample-campaign", "/join", "/login"];
+const PUBLIC = ["/", "/about", "/about/news", "/about/team", "/about/privacy", "/get-involved", "/get-involved/contribute", "/get-involved/volunteer", "/get-involved/contact", "/exhibitions", "/exhibitions/sample-ai-data", "/discussion", "/mentorship", "/sponsorship", "/sponsorship/sample-campaign", "/scholarships", "/join", "/login"];
 const PRIVATE = ["/account/workspace", "/exhibitions/new", "/mentorship/mentor", "/admin", "/admin/exhibitions", "/admin/sponsorship", "/admin/content"];
 
 const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7).split(",");

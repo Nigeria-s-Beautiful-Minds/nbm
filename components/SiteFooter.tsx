@@ -19,6 +19,7 @@ export function SiteFooter() {
               <li><Link href="/discussion">Discussion</Link></li>
               <li><Link href="/mentorship">Mentorship</Link></li>
               <li><Link href="/sponsorship">Sponsorship</Link></li>
+              <li><Link href="/scholarships">Scholarships &amp; Funding</Link></li>
             </ul>
           </nav>
           <nav aria-label="About NBM">

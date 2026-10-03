@@ -10,7 +10,8 @@ Recorded as they were made on 2 October 2026. Each can be revisited.
    content. NBM has its own schema and must have its own database. Locally it runs an embedded
    PostgreSQL (`npm run db:dev`); the hosted database is a blocker listed in the checklist.
 3. **Seven-tab scope.** Where the concept PDF (five sections, no Home) and the build guide
-   disagree, the build guide wins, as it instructs.
+   disagree, the build guide wins, as it instructs. (An eighth tab was added on 3 October 2026:
+   see 19.)
 4. **Roles are explicit and combinable.** Editor, moderator, coordinator, finance and
    administrator are separate capabilities (`lib/permissions.ts`). One person can hold several.
    Roles are read from the database on every request, so changes and suspensions apply at once.
@@ -45,3 +46,23 @@ Recorded as they were made on 2 October 2026. Each can be revisited.
     as the link-preview image.
 17. **No dark mode, no Three.js.** The visual guide defines one green-and-white system.
 18. **The guide PDFs were moved to `docs/reference/`.** `GNBM.png` stays at the project root.
+19. **Scholarships & Funding is a live search, not a database (3 October 2026).** The founder asked
+    for an eighth tab. Each search calls a web-search API (Tavily) from the server; nothing is
+    scraped from search-engine result pages and no opportunity is stored as an NBM record.
+20. **Details are read, not written.** Type, level, field, destination, funding, deadline and
+    eligibility are matched from the text the provider returns (`lib/scholarship-extract.ts`). No
+    language model rewrites them, so a detail the page does not state shows as "Not specified" and
+    is listed under "Could not be verified". A deadline counts only when it follows a deadline
+    phrase and carries a year. Filters remove a result only when its own stated details contradict
+    them; unknowns stay, flagged.
+21. **Official sources first.** University, government and known funder domains rank above other
+    sites; known directories and list pages are labelled and rank last. When the same opportunity
+    appears twice, the official page is the one kept.
+22. **Cost controls.** Results are cached for 12 hours in `SearchCache`; deadline window, sort,
+    paging and the expired toggle are applied after the cache and cost nothing. New searches are
+    limited to 8 per visitor per 10 minutes and to a site-wide daily number of provider calls.
+23. **Hero animation.** `video/NBM_Connect_Animation.mp4` replaces the still. Like `GNBM.png`
+    (16), its headline is baked into the picture, so the site uses the map portion behind the
+    real HTML headline. It plays once, silently, and rests on its last frame; reduced-motion
+    visitors get that frame as a still. The header now runs wider than the page column so eight
+    tabs fit, and collapses to the menu button below 1340px.

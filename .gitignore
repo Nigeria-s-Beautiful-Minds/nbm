@@ -24,6 +24,8 @@ next-env.d.ts
 
 # Original full-size artwork (compressed copies live in public/brand and prisma/demo-assets)
 images/
+# Original animation (web-ready copies live in public/brand; see scripts/prepare-hero-video.mjs)
+video/
 
 # Deployment settings with real keys: never committed
 .env.*

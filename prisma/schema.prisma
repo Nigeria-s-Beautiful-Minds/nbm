@@ -994,3 +994,15 @@ model Setting {
   value     Json
   updatedAt DateTime @updatedAt
 }
+
+// Results of a Scholarships & Funding web search, kept so a repeated search costs nothing
+// (lib/scholarships.ts). providerCalls counts the paid calls behind the row, for the daily cap.
+model SearchCache {
+  key           String   @id
+  payload       Json
+  providerCalls Int      @default(0)
+  fetchedAt     DateTime @default(now())
+  expiresAt     DateTime
+
+  @@index([fetchedAt])
+}

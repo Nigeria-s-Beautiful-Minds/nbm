@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ExhibitionCard, FundingBar } from "@/components/cards";
+import { HeroVideo } from "@/components/HeroVideo";
 import { LocalTime } from "@/components/LocalTime";
 import { CAMPAIGN_KINDS, WORKING_MODES, formatDate } from "@/lib/constants";
 import { listNews } from "@/lib/content";
@@ -27,10 +28,7 @@ export default async function HomePage() {
   return (
     <>
       <section className="hero">
-        <picture>
-          <source media="(max-width: 760px)" srcSet="/brand/nbm-hero-900.jpg" />
-          <img className="hero-image" src="/brand/nbm-hero.jpg" alt="" width={1672} height={640} fetchPriority="high" />
-        </picture>
+        <HeroVideo />
         <div className="shell">
           <div className="hero-inner">
             <h1><em>Connect</em> Nigeria&rsquo;s Beautiful Minds</h1>

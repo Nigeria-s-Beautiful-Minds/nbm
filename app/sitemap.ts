@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 // Only published, public pages. Account, staff, draft, pending and private records never appear.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = baseUrl();
-  const fixed = ["", "/about", "/about/news", "/about/team", "/about/privacy", "/terms", "/community-standards", "/get-involved", "/get-involved/contribute", "/get-involved/volunteer", "/get-involved/mailing-list", "/get-involved/contact", "/exhibitions", "/discussion", "/mentorship", "/sponsorship"];
+  const fixed = ["", "/about", "/about/news", "/about/team", "/about/privacy", "/terms", "/community-standards", "/get-involved", "/get-involved/contribute", "/get-involved/volunteer", "/get-involved/mailing-list", "/get-involved/contact", "/exhibitions", "/discussion", "/mentorship", "/sponsorship", "/scholarships"];
   const [exhibitions, news, threads, opportunities, campaigns] = await Promise.all([
     prisma.exhibition.findMany({ where: { status: "APPROVED" }, select: { slug: true, updatedAt: true }, take: 2000 }),
     prisma.newsArticle.findMany({ where: { status: "PUBLISHED" }, select: { slug: true, updatedAt: true }, take: 2000 }),

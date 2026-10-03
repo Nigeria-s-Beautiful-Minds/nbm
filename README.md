@@ -1,7 +1,7 @@
 # Nigeria's Beautiful Minds (NBM)
 
-A Nigeria-first community for research, innovation and collaboration. Seven tabs: Home, About,
-Get Involved, Exhibitions, Discussion, Mentorship, Sponsorship. Staff tools live under `/admin`.
+A Nigeria-first community for research, innovation and collaboration. Eight tabs: Home, About,
+Get Involved, Exhibitions, Discussion, Mentorship, Sponsorship, Scholarships & Funding. Staff tools live under `/admin`.
 
 Built on the same stack as the Optimais Labs site (Next.js 15 App Router, NextAuth, Prisma +
 PostgreSQL, Cloudflare R2, LiveKit, plain CSS), with its own database, storage and settings.
@@ -26,11 +26,14 @@ configured, uploads go to `.localdata/uploads`, emails wait in the queue (read t
 
 ```bash
 npm run typecheck
-npm test                # permissions, mentorship state rules, payment deduplication (needs dev server)
+npm test                # permissions, mentorship state rules, payment deduplication, scholarship search (needs dev server)
 npm run test:browser    # form journeys in a real browser (needs dev server)
 npm run screenshots -- --auth   # desktop, tablet and mobile captures in .tmp/screenshots (last 5 runs kept)
 npm run build
 ```
+
+On a busy machine the browser journeys can time out against `npm run dev` (pages compile on first
+visit). Run them against the built site instead: `npm run build && npm start`, then `npm run test:browser`.
 
 ## Where things are
 
@@ -40,9 +43,21 @@ npm run build
 | `app/admin/` | Staff tools, one page per responsibility |
 | `app/api/` | Uploads, media, reactions, comments, messages, audio rooms, payment webhook, jobs |
 | `lib/` | Business rules. `permissions.ts` (who can do what), `exhibitions.ts`, `discussions.ts`, `rooms.ts`, `mentorship.ts`, `sponsorship.ts`, `payments.ts`, `mailer.ts`, `storage.ts` |
+| `lib/scholarships.ts`, `lib/scholarship-extract.ts`, `lib/search-provider.ts` | Scholarships & Funding: cache and limits, reading results, the search API |
 | `lib/actions/` | Server actions behind the forms |
 | `prisma/` | Schema, migrations, seeds |
 | `docs/` | Checklist, architecture, decisions |
+
+## Scholarships & Funding search
+
+`/scholarships` runs a live web search through the Tavily search API and shows only what the
+returned pages state. It needs `TAVILY_API_KEY` in the environment; without it the page says the
+search is not switched on and shows nothing. To try the whole flow without a key or any cost:
+
+```bash
+npx tsx tests/mock-search-provider.ts     # labelled "[Test fixture]" records on example domains
+TAVILY_API_KEY=test-key SCHOLARSHIP_SEARCH_ENDPOINT=http://127.0.0.1:4599 npm run dev
+```
 
 ## Scheduled job
 

@@ -21,7 +21,10 @@ const browser = await puppeteer.launch({ headless: true });
 const page = await browser.newPage();
 await page.setViewport({ width: 1280, height: 900 });
 page.on("dialog", (dialog) => dialog.accept());
-const go = (path) => page.goto(BASE + path, { waitUntil: "networkidle2" });
+// A page is ready once React has attached to the header; on a busy machine that can lag behind the
+// network going quiet, and a click before it would be lost.
+const interactive = () => page.waitForFunction(() => Object.keys(document.querySelector(".theme-toggle") ?? {}).some((k) => k.startsWith("__reactProps")), { timeout: 30000, polling: 100 }).catch(() => {});
+const go = async (path) => { const response = await page.goto(BASE + path, { waitUntil: "networkidle2" }); await interactive(); return response; };
 const text = () => page.evaluate(() => document.body.innerText);
 const submit = async (selector = "form button[type=submit]") => { await pause(1700); await page.click(selector); };
 const linkFromEmail = async (kind, to) => {
@@ -53,6 +56,8 @@ await step("sign in, then the account menu works", async () => {
   await go("/login");
   await page.type("#email", email);
   await page.type("#password", password);
+  // Give the form time to become interactive on a slow machine; an early click would submit it natively.
+  await pause(1700);
   await Promise.all([page.waitForNavigation({ waitUntil: "networkidle2" }), page.click("form button[type=submit]")]);
   assert.match(await text(), /My workspace/);
 });
@@ -149,7 +154,36 @@ await step("contribution through the sandbox checkout: pending until the webhook
   assert.equal(await prisma.emailOutbox.count({ where: { toEmail: email, kind: "payment-acknowledgement" } }), 1);
 });
 
+await step("scholarships: chosen filters go into the address, survive a reload, and Clear filters resets them", async () => {
+  await go("/scholarships");
+  assert.match(await text(), /Discover scholarships, fellowships, and grants that support your education, research, and professional growth\./);
+  await pause(1700);
+  await page.click('input[name="type"][value="fellowship"]');
+  await page.click('input[name="level"][value="phd"]');
+  await page.select("#country", "GB");
+  await page.type("#q", "robotics");
+  await page.click("form.funding-form button[type=submit]");
+  await page.waitForFunction(() => location.search.includes("search=1"), { timeout: 15000 });
+  const params = new URL(page.url()).searchParams;
+  assert.deepEqual([params.get("type"), params.get("level"), params.get("country"), params.get("q")], ["fellowship", "phd", "GB", "robotics"]);
+  await page.reload({ waitUntil: "networkidle2" });
+  const kept = await page.evaluate(() => [document.querySelector('input[name="type"][value="fellowship"]').checked, document.querySelector('input[name="level"][value="phd"]').checked, document.querySelector("#country").value, document.querySelector("#q").value]);
+  assert.deepEqual(kept, [true, true, "GB", "robotics"]);
+  // With no search key configured the page must say so and show no cards; with one, cards link out.
+  const body = await text();
+  const cards = await page.$$eval(".opp-card a.button", (links) => links.map((a) => [a.href.startsWith("http"), a.target, a.rel.includes("noopener")]));
+  assert.ok(/isn.t available yet|opportunit(y|ies) found|No matching opportunities|couldn.t complete|allowance/.test(body));
+  if (/isn.t available yet/.test(body)) assert.equal(cards.length, 0);
+  assert.ok(cards.every(([http, target, safe]) => http && target === "_blank" && safe));
+  await page.evaluate(() => [...document.querySelectorAll("form.funding-form button")].find((b) => b.textContent === "Clear filters").click());
+  await page.waitForFunction(() => location.search === "", { timeout: 15000 });
+  await pause(300);
+  assert.equal(await page.$eval("#q", (el) => el.value), "");
+});
+
 await step("desktop navigation by keyboard: About opens with Enter, has exactly four entries, closes with Escape", async () => {
+  // The eight tabs show from 1341px wide; below that the menu button takes over.
+  await page.setViewport({ width: 1366, height: 900 });
   await go("/");
   await page.focus("[data-menu=about]");
   await page.keyboard.press("Enter");
@@ -158,7 +192,7 @@ await step("desktop navigation by keyboard: About opens with Enter, has exactly 
   await page.keyboard.press("Escape");
   assert.equal(await page.$("#menu-about"), null);
   const tabs = await page.$$eval(".nav-links > .nav-item > a, .nav-links > .nav-item > button:not(.nav-caret)", (els) => els.map((el) => el.textContent.trim()));
-  assert.deepEqual(tabs, ["Home", "About", "Get Involved", "Exhibitions", "Discussion", "Mentorship", "Sponsorship"]);
+  assert.deepEqual(tabs, ["Home", "About", "Get Involved", "Exhibitions", "Discussion", "Mentorship", "Sponsorship", "Scholarships & Funding"]);
 });
 
 await step("mobile navigation: collapsible menu with tap-to-expand submenus, no hover needed", async () => {

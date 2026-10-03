@@ -8,7 +8,8 @@ Browser ── Next.js 15 (App Router, server components + server actions)
               ├─ Object storage                  R2 (private bucket, presigned PUT/GET) · local disk in development
               ├─ LiveKit Cloud                   audio only; rooms, tokens and permissions issued by the server
               ├─ Email (Resend or SMTP)          through the EmailOutbox queue
-              └─ Payment provider                hosted checkout + signed webhook (Paystack adapter, dev sandbox)
+              ├─ Payment provider                hosted checkout + signed webhook (Paystack adapter, dev sandbox)
+              └─ Web search API (Tavily)         Scholarships & Funding; server-side key, cached in SearchCache
 ```
 
 ## Data groups (prisma/schema.prisma)
@@ -19,6 +20,7 @@ Browser ── Next.js 15 (App Router, server components + server actions)
 - **Mentorship**: MentorProfile, Opportunity (capacity / filled), MentorshipApplication, Match, Milestone, MatchUpdate
 - **Support**: Campaign, CampaignMilestone, CampaignUpdate, Contribution, PaymentEvent (unique provider + event id), Disbursement, SupportEnquiry
 - **Operations**: VolunteerApplication, MailingSubscriber, ContactRequest, AuditLog, EmailOutbox, Setting
+- **Scholarships & Funding**: SearchCache (search results for 12 hours, and the count of provider calls behind them). Opportunities are never stored as NBM records.
 
 ## Who can do what
 
@@ -48,7 +50,8 @@ requires a session for `/admin` and `/account`.
 
 Per environment set: `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `DATABASE_URL`, `DIRECT_URL`, `R2_*`,
 `LIVEKIT_*`, `RESEND_API_KEY` or `SMTP_*`, `EMAIL_FROM`, `CONTACT_TO_EMAIL`, `PAYMENT_PROVIDER`,
-`PAYSTACK_SECRET_KEY`, `JOBS_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`. Webhook URL to register
+`PAYSTACK_SECRET_KEY`, `JOBS_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `TAVILY_API_KEY`,
+`SCHOLARSHIP_SEARCH_DAILY_CALLS`. Webhook URL to register
 with the payment provider: `<site>/api/payments/webhook/paystack`. The R2 bucket needs CORS
 allowing PUT/GET/HEAD from the site's origin.
 
@@ -58,8 +61,9 @@ allowing PUT/GET/HEAD from the site's origin.
 - **Media**: storage and egress. Caps: 5 photos of 10 MB or one 100 MB / 3 minute video per post.
 - **Email**: confirmation, reset, notification and acknowledgement volume.
 - **Payments**: provider fee per transaction (recorded per contribution).
+- **Scholarship search**: 2 Tavily credits per new search (basic depth); repeats within 12 hours are free. Capped by `SCHOLARSHIP_SEARCH_DAILY_CALLS` (default 30 calls a day) and 8 new searches per visitor per 10 minutes. Pricing checked 3 October 2026: 1,000 free credits a month, then $0.008 a credit or $30 a month for 4,000.
 
-No pricing was verified for this build. Check each provider's current pricing and set spending
+Apart from the scholarship search, no pricing was verified for this build. Check each provider's current pricing and set spending
 alerts before the beta; do not assume a free tier covers it.
 
 ## Deploy and roll back

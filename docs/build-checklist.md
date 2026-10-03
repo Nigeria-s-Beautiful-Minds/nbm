@@ -25,6 +25,8 @@ Status as of 2 October 2026, against `docs/reference/NBM_Website_A_to_Z_Build_Gu
 - **Email delivery.** The queue, retries and templates work; no real provider was configured, so nothing has arrived in a real inbox.
 - **Cloudflare R2.** The R2 path is the one the Optimais site uses, but NBM has only been run against local disk storage.
 
+- **Scholarships & Funding (added 3 October 2026).** Tab, page, filter form, result cards, sorting, "Load more", loading / empty / error states, cache, rate limit and daily cap are built. Verified locally against a mock provider (`npm test`, 17 checks; browser walk-through; screenshots in light and dark at three widths) and with a real Tavily key in the local `.env`: one search (fully funded master's scholarships in the UK for Nigerian applicants) returned university and funder pages first, directories last, with expired entries hidden. **Only that one real search has been reviewed.** On pages that list several awards, the deadline and funding shown may belong to a different award on the same page; such cards are flagged, but accuracy across other filters has not been measured. The key is not yet set on any hosted environment.
+
 ## Not started
 
 - Stronger sign-in (two-factor) for staff accounts.
@@ -47,6 +49,7 @@ Status as of 2 October 2026, against `docs/reference/NBM_Website_A_to_Z_Build_Gu
 | Email provider key or SMTP account and a sending address (Contact us recipient is set: nigeriasbeautifulminds@gmail.com) | All outgoing email |
 | Payment decision: receiving organisation, provider, currencies, refund rules, finance owner | Any real contribution |
 | Domain and hosting access | Deployment |
+| `TAVILY_API_KEY` added to the hosting environment (it is in the local `.env` only), and `npx prisma migrate deploy` | Live Scholarships & Funding search once deployed |
 | Review and approval of the Privacy, Terms and Community standards drafts (About us is published with the founder's text); legal name and contact point; minimum age; retention periods | Publishing policies |
 | Confirmation of the relationship with Optimais Labs | Showing it on About |
 | Real team names, roles, photographs and biographies | The team page |
