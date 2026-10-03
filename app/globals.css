@@ -179,9 +179,6 @@ ul, ol { padding-left: 1.25em; }
 .narrow { max-width: 760px; }
 .medium { max-width: 920px; }
 
-/* ── Staging banner ── */
-.stage-banner { background: var(--gold-soft); color: var(--gold-ink); border-bottom: 1px solid var(--gold-border); font-size: 0.82rem; text-align: center; padding: 6px 16px; }
-
 /* ── Header ── */
 .site-header { position: sticky; top: 0; z-index: 60; background: var(--header-bg); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
 .nav { display: flex; align-items: center; gap: 14px; min-height: 68px; }

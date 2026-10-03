@@ -33,9 +33,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <a className="skip-link" href="#main">Skip to content</a>
-        {!isProductionStage && (
-          <div className="stage-banner" role="note">Staging preview. Content here is provisional and sample records are labelled.</div>
-        )}
         {children}
       </body>
     </html>

@@ -51,8 +51,8 @@ visit). Run them against the built site instead: `npm run build && npm start`, t
 ## Scholarships & Funding search
 
 `/scholarships` runs a live web search through the Tavily search API and shows only what the
-returned pages state. It needs `TAVILY_API_KEY` in the environment; without it the page says the
-search is not switched on and shows nothing. To try the whole flow without a key or any cost:
+returned pages state. It needs `TAVILY_API_KEY` in the environment; without it a search answers
+"Search isn't available yet" and shows nothing. To try the whole flow without a key or any cost:
 
 ```bash
 npx tsx tests/mock-search-provider.ts     # labelled "[Test fixture]" records on example domains

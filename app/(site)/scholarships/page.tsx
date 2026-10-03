@@ -6,7 +6,6 @@ import { PageHero } from "@/components/cards";
 import { ScholarshipSearchForm } from "@/components/ScholarshipSearchForm";
 import { formatDate } from "@/lib/constants";
 import { clientIp } from "@/lib/rate-limit";
-import { searchProviderStatus } from "@/lib/search-provider";
 import { PAGE_SIZE, searchKey, searchScholarships } from "@/lib/scholarships";
 import {
   COUNTRY_BY_CODE, EDUCATION_LEVELS, FIELDS, FUNDING_LEVELS, OPPORTUNITY_TYPES, SORTS,
@@ -32,7 +31,6 @@ export default async function ScholarshipsPage({ searchParams }: { searchParams:
   const filters = parseFilters(params);
   const searched = params.search === "1";
   const page = Math.min(MAX_PAGES, Math.max(1, Number.parseInt(String(params.page ?? "1"), 10) || 1));
-  const provider = searchProviderStatus();
   const visitor = clientIp(await headers());
 
   return (
@@ -43,11 +41,6 @@ export default async function ScholarshipsPage({ searchParams }: { searchParams:
 
       <section className="page-section tight">
         <div className="shell">
-          {!provider.configured && (
-            <div className="notice warn" role="note">
-              <p><strong>Live search is not switched on yet.</strong> This page is ready, but it is waiting for a search API key to be added to the site&rsquo;s settings. Until then no results can be shown, and none are made up.</p>
-            </div>
-          )}
           <ScholarshipSearchForm key={filtersToQuery(filters)} initial={filters} />
         </div>
       </section>
