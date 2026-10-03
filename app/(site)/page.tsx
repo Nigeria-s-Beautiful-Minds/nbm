@@ -99,6 +99,20 @@ export default async function HomePage() {
         </section>
       )}
 
+      <section className="page-section tight accent-about">
+        <div className="shell">
+          <div className="section-head">
+            <div><p className="kicker">Our Film</p><h2>Nigeria&rsquo;s Beautiful Minds, Connected</h2></div>
+            <p className="lede">A short look at the community: Nigerian researchers, innovators and professionals at home and in the diaspora, building and supporting one another.</p>
+          </div>
+          <div className="video-media">
+            <video controls playsInline preload="none" poster="/brand/nbm-brand-film-poster.jpg">
+              <source src="/brand/nbm-brand-film.mp4" type="video/mp4" />
+            </video>
+          </div>
+        </div>
+      </section>
+
       {opportunities.length > 0 && (
         <section className="page-section tight accent-mentorship">
           <div className="shell">
