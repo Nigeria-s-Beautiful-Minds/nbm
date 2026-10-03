@@ -17,6 +17,7 @@ export default async function JoinPage() {
     <section className="page-section">
       <div className="shell split">
         <div>
+          <div className="logo-panel" style={{ justifyContent: "flex-start" }}><img src="/brand/nbm-logo.png" alt="Nigeria's Beautiful Minds (NBM): people, ideas, opportunities, a brighter Nigeria" width={520} height={534} /></div>
           <p className="kicker">Join NBM</p>
           <h1>Join Nigeria&rsquo;s Beautiful Minds</h1>
           <p className="lede">Membership is free and open to students, researchers, builders and professionals in Nigeria and across the diaspora. You don&rsquo;t need a title or a publication record to take part.</p>

@@ -185,7 +185,7 @@ export function RoomPanel({ room, initialState, canJoin, signedIn, audioConfigur
       {live && (
         <div className="mt-2">
           {state.hostAwaySecondsLeft !== null && (
-            <p className="status" role="status" style={{ color: "#17211D" }}>The host has disconnected. The room will close in {state.hostAwaySecondsLeft} seconds unless they return.</p>
+            <p className="status warn-on-dark" role="status">The host has disconnected. The room will close in {state.hostAwaySecondsLeft} seconds unless they return.</p>
           )}
 
           {state.you?.removed ? (

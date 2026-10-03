@@ -65,7 +65,7 @@ await step("a member posts an exhibition with a real photo; it waits for review"
   await page.select("#stage", "PROTOTYPE");
   await page.type("#description", "Posted by the browser walk-through with a real image upload to check the whole flow.");
   const input = await page.$("input[type=file]");
-  await input.uploadFile(resolve("prisma/demo-assets/sample-2.jpg"));
+  await input.uploadFile(resolve("prisma/demo-assets/environment-water.jpg"));
   await page.waitForSelector("[id^=alt-]");
   await page.type("[id^=alt-]", "A map of West Africa used as a test image");
   await page.waitForFunction(() => !document.body.innerText.includes("Uploading"), { timeout: 30000 });

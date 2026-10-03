@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 import { ACCOUNT_NAV, SITE_NAV, type NavItem } from "@/lib/site-nav";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type HeaderViewer = { name: string; initials: string; isStaff: boolean; unread: number } | null;
 
@@ -12,16 +13,9 @@ const Caret = () => (
   <svg className="caret" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 
+/** The NBM emblem from the founder's logo (images/NBM_logo.png, prepared by scripts/prepare-brand.mjs). */
 export function BrandMark() {
-  // Green, white, green: the flag's bars, read as three people standing together.
-  return (
-    <svg className="brand-mark" viewBox="0 0 34 34" aria-hidden="true">
-      <rect width="34" height="34" rx="9" fill="#064E3B" />
-      <rect x="7" y="9" width="5.5" height="16" rx="2.75" fill="#10B981" />
-      <rect x="14.25" y="9" width="5.5" height="16" rx="2.75" fill="#FFFFFF" />
-      <rect x="21.5" y="9" width="5.5" height="16" rx="2.75" fill="#10B981" />
-    </svg>
-  );
+  return <img className="brand-emblem" src="/brand/nbm-emblem.png" alt="" width={44} height={43} />;
 }
 
 export function SiteHeader({ viewer }: { viewer: HeaderViewer }) {
@@ -62,7 +56,7 @@ export function SiteHeader({ viewer }: { viewer: HeaderViewer }) {
       <div className="shell nav">
         <Link className="brand" href="/" aria-label="Nigeria's Beautiful Minds, home">
           <BrandMark />
-          <span className="brand-text">NBM<span className="brand-sub">Nigeria&rsquo;s Beautiful Minds</span></span>
+          <span className="brand-text"><span className="brand-name">NBM</span><span className="brand-sub">Nigeria&rsquo;s Beautiful Minds</span></span>
         </Link>
 
         <nav className="nav-links" aria-label="Main">
@@ -103,6 +97,7 @@ export function SiteHeader({ viewer }: { viewer: HeaderViewer }) {
         </nav>
 
         <div className="nav-actions">
+          <ThemeToggle />
           {viewer ? (
             <div className="nav-item">
               <button type="button" className="avatar" data-menu="account" aria-expanded={openMenu === "account"} aria-controls="menu-account" aria-label={`Account menu for ${viewer.name}${viewer.unread ? `, ${viewer.unread} unread notifications` : ""}`} onClick={() => toggle("account")}>

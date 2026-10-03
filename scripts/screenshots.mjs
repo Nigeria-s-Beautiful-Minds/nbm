@@ -15,12 +15,16 @@ const PRIVATE = ["/account/workspace", "/exhibitions/new", "/mentorship/mentor",
 
 const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7).split(",");
 const withAuth = process.argv.includes("--auth");
+// --dark captures the dark theme by setting the saved choice before each page loads.
+const dark = process.argv.includes("--dark");
 const run = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 const outDir = join(ROOT, run);
 await mkdir(outDir, { recursive: true });
 
 const browser = await puppeteer.launch({ headless: true });
 const page = await browser.newPage();
+await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: dark ? "dark" : "light" }]);
+if (dark) await page.evaluateOnNewDocument(() => { try { localStorage.setItem("nbm-theme", "dark"); } catch {} });
 const problems = [];
 
 async function shoot(path) {
@@ -30,7 +34,7 @@ async function shoot(path) {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     if (overflow > 1) problems.push(`${path} @${name}: horizontal overflow of ${overflow}px`);
     if (!res || res.status() >= 400) problems.push(`${path} @${name}: HTTP ${res?.status()}`);
-    await page.screenshot({ path: join(outDir, `${path.replace(/\//g, "_").replace(/^_$/, "_home")}-${name}.png`), fullPage: true });
+    await page.screenshot({ path: join(outDir, `${path.replace(/\//g, "_").replace(/^_$/, "_home")}-${name}${dark ? "-dark" : ""}.png`), fullPage: true });
   }
 }
 

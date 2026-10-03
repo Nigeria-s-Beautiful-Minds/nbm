@@ -25,6 +25,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <section className="page-section">
       <div className="shell auth-wrap">
+        <div className="logo-panel"><img src="/brand/nbm-logo.png" alt="Nigeria's Beautiful Minds (NBM): people, ideas, opportunities, a brighter Nigeria" width={520} height={534} /></div>
         <h1>Sign in</h1>
         {params.registered === "1" && <p className="status success" role="status">Account created. We&rsquo;ve emailed you a confirmation link. Sign in to continue.</p>}
         {params.reset === "1" && <p className="status success" role="status">Password updated. Sign in with your new password.</p>}

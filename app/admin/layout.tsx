@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { can, type Capability } from "@/lib/permissions";
 import { requireStaff } from "@/lib/viewer";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 // Staff tools: never indexed, never in the sitemap, and every page re-checks the viewer's role.
 export const metadata: Metadata = { title: { default: "Staff tools", template: "%s | NBM staff" }, robots: { index: false, follow: false } };
@@ -32,6 +33,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="side-label">{viewer.name}</span>
           <Link href="/">Back to the site</Link>
         </nav>
+        <ThemeToggle />
       </aside>
       <main className="admin-main" id="main">{children}</main>
     </div>
