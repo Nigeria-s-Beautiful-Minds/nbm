@@ -226,8 +226,8 @@ export function ExhibitionEditor({
       )}
 
       <div className="field-wrap full">
-        <label htmlFor="title">Project title</label>
-        <input id="title" name="title" className="field" required minLength={3} maxLength={TEXT_LIMITS.title} defaultValue={values?.title} placeholder="What are you sharing?" />
+        <label htmlFor="title">{canPublishDirect ? <>Title <span className="optional">(optional: your caption is used if you leave it blank)</span></> : "Project title"}</label>
+        <input id="title" name="title" className="field" required={!canPublishDirect} minLength={canPublishDirect ? undefined : 3} maxLength={TEXT_LIMITS.title} defaultValue={values?.title} placeholder="What are you sharing?" />
       </div>
 
       <div className="field-wrap">
@@ -247,8 +247,8 @@ export function ExhibitionEditor({
       </div>
 
       <div className="field-wrap full">
-        <label htmlFor="description">Description</label>
-        <textarea id="description" name="description" className="field" rows={7} maxLength={TEXT_LIMITS.description} defaultValue={values?.description} placeholder="What problem does it address, what have you built or found so far, and what help are you looking for?" />
+        <label htmlFor="description">{canPublishDirect ? <>Caption <span className="optional">(optional)</span></> : "Description"}</label>
+        <textarea id="description" name="description" className="field" rows={7} maxLength={TEXT_LIMITS.description} defaultValue={values?.description} placeholder={canPublishDirect ? "A few words about this photo or video, for people who visit the page." : "What problem does it address, what have you built or found so far, and what help are you looking for?"} />
       </div>
 
       <div className="field-wrap full">

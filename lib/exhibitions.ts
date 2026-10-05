@@ -153,8 +153,16 @@ export async function getExhibitionForViewer(slugOrId: string, viewer: Viewer | 
 
 type Checked = { ok: true; data: ExhibitionInput } | { ok: false; error: string };
 
-/** Validates a post's text, links and media against the pilot limits and the author's own uploads. */
-export async function checkExhibitionInput(raw: unknown, authorId: string, exhibitionId: string | null, forSubmission: boolean): Promise<Checked> {
+// A short caption, cut at a sentence or word boundary, used as the title of a staff post with none.
+function titleFromCaption(text: string): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  const sentence = clean.split(/(?<=[.!?])\s/)[0] ?? clean;
+  if (sentence.length <= 80) return sentence;
+  return `${sentence.slice(0, 80).replace(/\s+\S*$/, "")}…`;
+}
+
+/** Validates a post's text, links and media against the pilot limits and the author's own uploads. `lightweight` is for staff who publish directly: a caption and media are enough, with no title or long description. */
+export async function checkExhibitionInput(raw: unknown, authorId: string, exhibitionId: string | null, forSubmission: boolean, lightweight: boolean): Promise<Checked> {
   const body = (raw ?? {}) as Record<string, unknown>;
   const str = (key: string) => (typeof body[key] === "string" ? (body[key] as string).trim() : "");
   const title = str("title");
@@ -164,9 +172,10 @@ export async function checkExhibitionInput(raw: unknown, authorId: string, exhib
   const teamCredits = str("teamCredits");
   const projectUrl = str("projectUrl");
 
-  if (title.length < 3 || title.length > TEXT_LIMITS.title) return { ok: false, error: `Please give your project a title (3–${TEXT_LIMITS.title} characters).` };
+  if (!lightweight && (title.length < 3 || title.length > TEXT_LIMITS.title)) return { ok: false, error: `Please give your project a title (3–${TEXT_LIMITS.title} characters).` };
+  if (title.length > TEXT_LIMITS.title) return { ok: false, error: `The title can be up to ${TEXT_LIMITS.title} characters.` };
   if (description.length > TEXT_LIMITS.description) return { ok: false, error: `The description can be up to ${TEXT_LIMITS.description} characters.` };
-  if (forSubmission && description.length < 30) return { ok: false, error: "Please describe your project in at least a couple of sentences before submitting." };
+  if (forSubmission && !lightweight && description.length < 30) return { ok: false, error: "Please describe your project in at least a couple of sentences before submitting." };
   if (topic && !(TOPICS as readonly string[]).includes(topic)) return { ok: false, error: "Please choose a topic from the list." };
   if (stage && !(stage in PROJECT_STAGES)) return { ok: false, error: "Please choose a project stage from the list." };
   if (forSubmission && (!topic || !stage)) return { ok: false, error: "Please choose a topic and a project stage before submitting." };
@@ -194,6 +203,9 @@ export async function checkExhibitionInput(raw: unknown, authorId: string, exhib
   if (media.length > limits.imagesPerPost) return { ok: false, error: `A post can have up to ${limits.imagesPerPost} photos.` };
   if (forSubmission && media.length === 0) return { ok: false, error: "Please add at least one photo or a short video before submitting." };
 
+  const resolvedTitle = title || (lightweight ? titleFromCaption(description || media[0]?.alt || "") : "");
+  if (resolvedTitle.length < 3) return { ok: false, error: "Please add a caption or a title so people know what this post is about." };
+
   // Links must point at things that exist and belong to the author.
   const idOrNull = (key: string) => (typeof body[key] === "string" && body[key] ? (body[key] as string) : null);
   const linkedThreadId = idOrNull("linkedThreadId");
@@ -203,7 +215,7 @@ export async function checkExhibitionInput(raw: unknown, authorId: string, exhib
   if (linkedOpportunityId && !(await prisma.opportunity.findFirst({ where: { id: linkedOpportunityId, mentorId: authorId, status: "PUBLISHED" }, select: { id: true } }))) return { ok: false, error: "That mentorship opportunity can't be linked." };
   if (linkedCampaignId && !(await prisma.campaign.findFirst({ where: { id: linkedCampaignId, requesterId: authorId, status: "OPEN" }, select: { id: true } }))) return { ok: false, error: "Only an approved sponsorship campaign can be linked." };
 
-  return { ok: true, data: { title, description, topic, stage, teamCredits, projectUrl, linkedThreadId, linkedOpportunityId, linkedCampaignId, media } };
+  return { ok: true, data: { title: resolvedTitle, description, topic, stage, teamCredits, projectUrl, linkedThreadId, linkedOpportunityId, linkedCampaignId, media } };
 }
 
 function fieldsOf(data: ExhibitionInput) {
@@ -256,7 +268,7 @@ export async function saveExhibition(viewer: Viewer, exhibitionId: string | null
 
   const publishDirect = can(viewer.roles, "exhibitions.publishDirect");
   const isLive = existing?.status === "APPROVED";
-  const checked = await checkExhibitionInput(raw, viewer.id, existing?.id ?? null, intent === "submit" || isLive);
+  const checked = await checkExhibitionInput(raw, viewer.id, existing?.id ?? null, intent === "submit" || isLive, publishDirect);
   if (!checked.ok) return { ok: false, error: checked.error, status: 400 };
   const data = checked.data;
 
